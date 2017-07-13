@@ -1,0 +1,133 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Getopt::Long;
+Getopt::Long::Configure ("bundling");
+
+my @lorem = map { chomp; $_; } <DATA>;
+
+sub lipsum {
+	my ($n, $min, $max) = @_;
+
+	# generate $n sentences,
+	# between $min and $max words long
+
+	my (@source, @return);
+	while ($n--) {
+		@source = @lorem unless @source;
+		my $i = int(rand() * @source);
+		my @words = split(/ /, $source[$i]);
+
+		# drop this sentence from future rounds
+		$source[$i] = undef;
+		@source = grep { $_ } @source;
+
+		my $words = $min + int(rand($max - $min));
+		$words = @words if $words > @words;
+		$words--;
+		my $sentence = join(' ', @words[0..$words]);
+		$sentence =~ s/,$//;
+		$sentence .= '.' unless $sentence =~ m/[.?!]$/;
+
+		push @return, $sentence;
+	}
+
+	return @return;
+}
+
+sub wrap {
+	my ($s) = @_;
+	my $n = 0;
+	my (@line, @lines);
+	for my $word (split / /, $s) {
+		if ($n + length($word) > 80) {
+			push @lines, join(' ', @line);
+			@line = ();
+			$n = 0;
+		}
+		$n++ if @line;
+		$n += length($word);
+		push @line, $word;
+	}
+	push @lines, join(' ', @line) if @line;
+	return join("\n", @lines);
+}
+
+my %options;
+GetOptions(\%options, qw/
+	help|h|?
+	html!
+	quiet|q
+
+	paragraphs|p=i
+	sentences|s=i
+	list-items|l=i
+/) or die "invalid command-line flag; try $0 --help for details.\n";
+
+if ($options{help}) {
+	print "USAGE: $0 [options]\n\n";
+	print "Options:\n";
+	print "  -h, --help        Show this help screen\n";
+	print "  --html            Generate HTML output\n";
+	print "  -q, --quiet       Suppress (sometimes helpful) warnings\n";
+	print "\n";
+	print "  -p, --paragraphs  How many paragraphs to generate\n";
+	print "  -l, --list-items  How many list items to generate\n";
+	print "  -s, --sentences   How many sentences to generate\n";
+	print "\n";
+	exit 0;
+}
+
+if ($options{'list-items'}) {
+	print STDERR "silently ignoring --paragraphs option since --list-items was given.\n"
+		if !$options{quiet} && $options{paragraphs};
+	print STDERR "silently ignoring --sentences option since --list-items was given.\n"
+		if !$options{quiet} && $options{sentences};
+
+	print "<ul>\n" if $options{html};
+	for (lipsum($options{'list-items'}, 2, 10)) {
+		print "  <li>$_</li>\n" if  $options{html};
+		print "  - $_\n"        if !$options{html};
+	}
+	print "</ul>\n" if $options{html};
+	exit 0;
+}
+
+if ($options{paragraphs}) {
+	my $sentences = $options{sentences} || 5;
+	for (my $i = 0; $i < $options{paragraphs}; $i++) {
+		my $s = join(" ", lipsum($sentences, 3, 20));
+		print wrap("<p>$s</p>\n") if  $options{html};
+		print wrap("$s\n")        if !$options{html};
+		print "\n";
+	}
+	exit 0;
+}
+
+if ($options{sentences}) {
+	for (lipsum($options{sentences}, 3, 20)) {
+		print wrap("<p>$_</p>\n") if  $options{html};
+		print wrap("$_\n")        if !$options{html};
+	}
+	exit 0;
+}
+
+print "You must specify one of --paragraphs, --sentences, or --list-items\n";
+print "Try $0 --help for more details.\n";
+exit 1;
+
+__DATA__
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
+Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.
+Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur?
+Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?
+At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.
+Et harum quidem rerum facilis est et expedita distinctio.
+Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.
+Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae.
+Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.
